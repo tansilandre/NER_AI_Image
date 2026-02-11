@@ -40,12 +40,12 @@
           ┌───────────────┼───────────────────┐
           ▼               ▼                   ▼
 ┌──────────────┐ ┌──────────────┐   ┌──────────────────┐
-│  Supabase    │ │ Cloudflare   │   │  External APIs   │
-│  (Auth + DB) │ │  R2 Storage  │   │                  │
+│  PostgreSQL  │ │ Cloudflare   │   │  External APIs   │
+│  (Database)  │ │  R2 Storage  │   │                  │
 │              │ │              │   │  - kie.ai        │
-│  - Auth      │ │  - Generated │   │  - OpenAI        │
-│  - PostgreSQL│ │    images    │   │  - Gemini        │
-│  - Realtime  │ │  - Uploads   │   │                  │
+│  - Users     │ │  - Generated │   │  - OpenAI        │
+│  - Orgs      │ │    images    │   │  - Gemini        │
+│  - Generations│ │  - Uploads   │   │                  │
 └──────────────┘ └──────────────┘   └──────────────────┘
 ```
 
@@ -59,8 +59,8 @@
 | Styling | TailwindCSS | Utility-first, easy Bauhaus implementation |
 | State | Zustand | Lightweight, minimal boilerplate |
 | Backend | Go 1.23 + Fiber v2 | High performance, familiar Express-like API |
-| Auth | Supabase Auth | Google SSO out of the box, JWT tokens |
-| Database | Supabase PostgreSQL | Managed Postgres, Row Level Security |
+| Auth | Simple JWT | Built-in, no external dependency |
+| Database | PostgreSQL | Any provider (local, Railway, Neon, AWS) |
 | Storage | Cloudflare R2 | S3-compatible, no egress fees |
 | Image Gen | **Provider Registry** | Pluggable — see §9 Provider System |
 | Image Analysis | **Provider Registry** | Pluggable — see §9 Provider System |
@@ -71,30 +71,36 @@
 ## 3. Authentication Flow
 
 ```
-Frontend                    Backend (Fiber)              Supabase
+Frontend                    Backend (Fiber)              PostgreSQL
    │                            │                           │
-   │  1. Click "Sign in with Google"                        │
-   │────────────────────────────────────────────────────────>│
-   │                            │                           │
-   │  2. Google OAuth redirect + callback                   │
-   │<───────────────────────────────────────────────────────│
-   │                            │                           │
-   │  3. Supabase returns JWT (access_token + refresh_token)│
-   │                            │                           │
-   │  4. API request with Bearer token                      │
+   │  1. POST /auth/login       │                           │
+   │  {email, password}         │                           │
    │───────────────────────────>│                           │
-   │                            │  5. Verify JWT            │
+   │                            │  2. Query user by email   │
    │                            │──────────────────────────>│
-   │                            │  6. User data             │
+   │                            │  3. Return user + hash    │
    │                            │<──────────────────────────│
    │                            │                           │
-   │  7. Response               │                           │
+   │                            │  4. Verify password       │
+   │                            │  5. Generate JWT          │
+   │                            │                           │
+   │  6. Return JWT token       │                           │
+   │<───────────────────────────│                           │
+   │                            │                           │
+   │  7. API request with       │                           │
+   │     Bearer token           │                           │
+   │───────────────────────────>│                           │
+   │                            │  8. Verify JWT locally    │
+   │                            │  (no external call)       │
+   │                            │                           │
+   │  9. Response               │                           │
    │<───────────────────────────│                           │
 ```
 
-- Supabase handles all OAuth complexity
-- Backend validates JWT on every request via middleware
-- User profile + org association stored in our PostgreSQL tables (managed by Supabase)
+- Simple JWT authentication (no external service)
+- Backend validates JWT locally via middleware
+- User profile + org association stored in PostgreSQL
+- Passwords hashed with bcrypt
 
 ---
 
@@ -183,8 +189,8 @@ Cost Model (per-provider, configurable via admin panel):
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | Monorepo | Single repo with `/apps/web`, `/apps/api` | Shared types, atomic commits, simpler CI |
-| Auth | Supabase Auth (not custom) | Battle-tested Google SSO, free tier generous |
-| DB | Supabase PostgreSQL (not separate) | Co-located with auth, RLS support |
+| Auth | Simple JWT (built-in) | No external dependency, full control |
+| DB | Standard PostgreSQL | Works with any provider, simple connection |
 | Storage | R2 (not Supabase Storage) | Already in use, no egress fees |
 | Polling (not WebSocket) | Simpler for v1 | Fewer failure modes, easy to implement |
 | Go Fiber (not Echo/Gin) | Express-like API | Familiar patterns, fast performance |
@@ -198,10 +204,8 @@ Cost Model (per-provider, configurable via admin panel):
 
 ```
 # Backend (.env)
-SUPABASE_URL=https://xxx.supabase.co
-SUPABASE_ANON_KEY=eyJ...
-SUPABASE_SERVICE_ROLE_KEY=eyJ...
-DATABASE_URL=postgresql://...
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+JWT_SECRET=your-secret-key-min-32-characters
 
 # API keys are stored in the providers table (encrypted),
 # but can be overridden via env vars for local development:
@@ -216,11 +220,9 @@ R2_BUCKET_NAME=ner-storage
 R2_PUBLIC_URL=https://bucket.tansil.pro
 
 CALLBACK_BASE_URL=https://api.nerstudio.com
-PROVIDER_KEY_ENCRYPTION_SECRET=...  # AES key for encrypting API keys in DB
+PROVIDER_KEY_ENCRYPTION_SECRET=...
 
 # Frontend (.env)
-VITE_SUPABASE_URL=https://xxx.supabase.co
-VITE_SUPABASE_ANON_KEY=eyJ...
 VITE_API_URL=https://api.nerstudio.com
 ```
 

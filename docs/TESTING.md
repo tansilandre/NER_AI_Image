@@ -77,20 +77,25 @@ go test ./internal/repository -v
 docker-compose -f docker-compose.test.yml down
 ```
 
-2. **Using Supabase Local**
+2. **Using Local PostgreSQL**
 ```bash
-# Start Supabase
-supabase start
+# Start PostgreSQL
+brew services start postgresql  # macOS
+# or
+docker run -d -p 5432:5432 -e POSTGRES_PASSWORD=postgres postgres:15
+
+# Create test database
+createdb ner_studio_test
 
 # Run tests
-export DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/ner_studio_test
 go test ./internal/repository -v
 ```
 
-3. **Using Supabase Cloud (Use with caution!)**
+3. **Using Cloud PostgreSQL (Use with caution!)**
 ```bash
 # Only for staging/development databases
-export DATABASE_URL=your_supabase_connection_string
+export DATABASE_URL=your_postgresql_connection_string
 go test ./internal/repository -v -run TestOrganization  # Run specific test
 ```
 

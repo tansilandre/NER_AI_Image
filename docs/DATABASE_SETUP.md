@@ -1,130 +1,136 @@
 # Database Setup Guide
 
-## Supabase Configuration
+NER Studio uses **standard PostgreSQL** (any provider works).
 
-### 1. Create Supabase Project
-1. Go to https://supabase.com
-2. Create new project
-3. Note down the database connection string
+## Quick Start
 
-### 2. Get Connection String
-1. In Supabase Dashboard → Settings → Database
-2. Copy "Connection string" (URI format)
-3. Format: `postgresql://postgres:[PASSWORD]@db.[PROJECT_ID].supabase.co:5432/postgres`
+### 1. Get PostgreSQL Database
 
-### 3. Configure Environment
+Choose any PostgreSQL provider:
+
+#### Option A: Local PostgreSQL
+```bash
+# macOS
+brew install postgresql
+brew services start postgresql
+
+# Create database
+createdb ner_studio
+
+# Connection string
+DATABASE_URL=postgresql://localhost:5432/ner_studio
+```
+
+#### Option B: Railway (Easiest)
+1. Go to https://railway.app
+2. Create project → Add PostgreSQL
+3. Copy connection string from "Connect" tab
+
+#### Option C: Neon (Serverless)
+1. Go to https://neon.tech
+2. Create project
+3. Copy connection string
+
+#### Option D: AWS RDS / DigitalOcean / Any Provider
+Any PostgreSQL 14+ works. Just get the connection string.
+
+### 2. Configure Environment
+
 ```bash
 # apps/api/.env
-DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@db.xxx.supabase.co:5432/postgres
+DATABASE_URL=postgresql://user:password@host:5432/dbname
 ```
 
-### 4. Network Configuration
-Supabase requires IP whitelisting for direct connections:
+### 3. Run Migrations
 
-1. Go to Supabase Dashboard → Settings → Database
-2. Under "IPv4", add your IP address
-3. Or temporarily disable IP restrictions (not recommended for production)
-
-### 5. Run Migrations
-
-Option A: Using psql
 ```bash
-# Install psql if needed
-# macOS: brew install libpq
-# Ubuntu: sudo apt-get install postgresql-client
-
-# Run migrations
-./scripts/run-migrations.sh
-```
-
-Option B: Using Supabase CLI
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Login
-supabase login
-
-# Link to project
-supabase link --project-ref YOUR_PROJECT_ID
-
-# Push migrations
-supabase db push
-```
-
-Option C: Manual (Supabase Dashboard)
-```bash
-# Go to Supabase Dashboard → SQL Editor
-# Copy contents of each migration file and execute
-```
-
-### 6. Seed Data
-```bash
-# Run seed file
-psql $DATABASE_URL -f supabase/migrations/010_seed_providers.sql
-```
-
-### 7. Verify Setup
-```bash
-# Test connection
-./scripts/test-db.sh
-
-# Or manually
 cd apps/api
-go run cmd/server/main.go
+go run cmd/migrate/main.go
 ```
 
 You should see:
 ```
-✅ Database connection successful!
+✅ Connected!
+Found 10 migration files
+→ Running 000_create_users.sql... ✅ Success
+→ Running 001_create_organizations.sql... ✅ Success
+...
+✅ Migration Complete!
+Total tables: 8
+```
+
+### 4. Verify Setup
+
+```bash
+# Test connection
+cd apps/api
+go run cmd/dbtest/main.go
+
+# Start server
+make dev-api
+```
+
+You should see:
+```
+✅ Database connected successfully!
 Server starting on port 5005
 ```
 
+## Environment Variables
+
+```env
+# Required
+DATABASE_URL=postgresql://user:password@host:5432/dbname
+
+# Optional (for security)
+JWT_SECRET=your-secret-key-here
+```
+
+## Connection String Examples
+
+| Provider | Connection String Format |
+|----------|-------------------------|
+| Local | `postgresql://localhost:5432/ner_studio` |
+| Railway | `postgresql://user:pass@containers-xx.railway.app:5432/railway` |
+| Neon | `postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/dbname` |
+| AWS RDS | `postgresql://user:pass@xxx.us-east-1.rds.amazonaws.com:5432/dbname` |
+
 ## Troubleshooting
 
-### "no route to host" or "connection refused"
-- Your IP is not whitelisted in Supabase
-- Solution: Add your IP in Supabase Dashboard → Settings → Database → IPv4
+### "connection refused"
+- PostgreSQL is not running
+- Wrong host/port in connection string
+- Firewall blocking connection
 
 ### "password authentication failed"
-- Wrong password in DATABASE_URL
-- Solution: Reset password in Supabase Dashboard
+- Wrong username/password
+- Check credentials in DATABASE_URL
 
 ### "database does not exist"
-- Wrong database name
-- Solution: Use `postgres` as database name for Supabase
+- Database hasn't been created yet
+- Run: `createdb ner_studio` (local) or create via provider dashboard
 
 ### SSL/TLS errors
-Add `?sslmode=require` to DATABASE_URL:
+Add `?sslmode=require` to DATABASE_URL for providers that require SSL:
 ```
-postgresql://.../postgres?sslmode=require
-```
-
-## Alternative: Supabase Local Development
-
-For local development without cloud connection:
-
-```bash
-# Install Supabase CLI
-npm install -g supabase
-
-# Start local Supabase
-supabase start
-
-# DATABASE_URL will be:
-# postgresql://postgres:postgres@localhost:54322/postgres
-
-# Stop when done
-supabase stop
+postgresql://.../dbname?sslmode=require
 ```
 
-## Connection Pooling (Recommended for Production)
+## Migration Files
 
-For production, use Supabase's connection pooler (PgBouncer):
+All migrations are in `supabase/migrations/` (name kept for historical reasons, but works with any PostgreSQL):
 
-1. In Supabase Dashboard → Database → Connection Pooling
-2. Copy "Connection string" from Connection Pooler section
-3. Use port 6543 instead of 5432
-4. Update DATABASE_URL accordingly
+1. `000_create_users.sql` - Users table
+2. `001_create_organizations.sql` - Organizations table
+3. `002_create_profiles.sql` - User profiles
+4. `003_create_generations.sql` - Generation requests
+5. `004_create_generation_images.sql` - Generated images
+6. `005_create_credit_ledger.sql` - Credit transactions
+7. `006_create_invitations.sql` - Org invitations
+8. `007_create_providers.sql` - AI providers config
+9. `008_create_rls_policies.sql` - Row level security (optional)
+10. `010_seed_providers.sql` - Default providers
 
-This prevents "too many connections" errors under load.
+## Database Schema
+
+See `docs/DATABASE_SCHEMA.md` for full schema documentation.
