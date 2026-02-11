@@ -2,143 +2,135 @@
 
 > Last Updated: 2026-02-11
 
-## Phase 1: Backend Foundation ✅ DONE
+## ✅ Completed Tasks
 
-### Project Setup ✅
-- [x] Initialize Go module
-- [x] Create directory structure
-- [x] Setup configuration management
-- [x] Setup logging middleware
-- [x] Create .env.example
-- [x] Create Dockerfile
-- [x] Create Makefile
-- [x] Create README
+### 1. Git Configuration ✅
+- [x] Root `.gitignore` (Go, Node, IDE, OS files)
+- [x] `apps/api/.gitignore` (API specific)
+- [x] `.gitattributes` (line endings)
+- [x] Git repo initialized
+- [x] Connected to https://github.com/tansilandre/NER_AI_Image
+- [x] Code pushed to GitHub
 
-### Database Layer ✅
-- [x] Create DB models
-- [x] Create repository layer (full CRUD)
-- [x] Create SQL migrations (all 9 tables)
-- [x] RLS policies
-- [x] Credit deduction function
+### 2. Database Setup ✅
+- [x] Database connection test utility (`apps/api/cmd/dbtest/main.go`)
+- [x] Migration runner script (`scripts/run-migrations.sh`)
+- [x] Database test script (`scripts/test-db.sh`)
+- [x] Database setup documentation (`docs/DATABASE_SETUP.md`)
+- [x] SQL migrations (9 files in `supabase/migrations/`)
 
-### Authentication ✅
-- [x] JWT middleware (Supabase)
-- [x] Profile middleware (sets org/role context)
-- [x] Auth service
-- [x] Auth handlers
-
-### Core Services ✅
-- [x] R2 storage client
-- [x] Credit service (deduct function)
-- [x] Upload service
-- [x] Provider registry
-
-### Providers ✅
-- [x] Vision provider (OpenAI GPT-4o)
-- [x] LLM provider interface
-- [x] Gemini provider (direct API)
-- [x] KieAI provider (LLM + ImageGen)
-- [x] Fallback chain logic
-- [x] Provider factory auto-registration
-
-### Workflows ✅
-- [x] Image generation workflow (full async)
-- [x] Vision analysis integration
-- [x] LLM prompt generation with fallback
-- [x] Async job processing (goroutines)
-- [x] Callback handling
-- [x] Credit deduction on completion
-
-### Handlers ✅
-- [x] Generation handlers
-- [x] Upload handlers
-- [x] Auth handlers
-- [x] Callback handlers
-- [ ] Gallery handlers (stub)
-- [ ] Admin handlers (stub)
-
-### Server ✅
-- [x] Fiber app setup
-- [x] All routes wired
-- [x] Middleware chain
-- [x] Graceful shutdown
-- [x] Builds successfully
-
-### Testing ✅
-- [x] Unit tests (provider, service, middleware, handler, external)
-- [x] Integration tests with DB (repository layer)
-- [x] CI/CD pipeline configuration (.github/workflows/test.yml)
-- [x] Docker Compose for test database
-- [x] Testing documentation (docs/TESTING.md)
-
-### Test Results
+### Current Status: Database Connection Issue
 ```
-✅ github.com/ner-studio/api/internal/external     - PASS
-✅ github.com/ner-studio/api/internal/handler      - PASS  
-✅ github.com/ner-studio/api/internal/middleware   - PASS (54.4% coverage)
-✅ github.com/ner-studio/api/internal/provider     - PASS
-✅ github.com/ner-studio/api/internal/repository   - PASS (skipped - no DB)
-✅ github.com/ner-studio/api/internal/service      - PASS
+❌ Cannot connect to Supabase from current environment
+   Reason: "no route to host" - network routing issue
+   
+✅ Server starts and runs (without DB connection)
+✅ All unit tests pass
+✅ Code is on GitHub
 ```
-
-### CI/CD Pipeline ✅
-- [x] GitHub Actions workflow
-- [x] Automated testing on push/PR
-- [x] PostgreSQL service for integration tests
-- [x] Docker build step
-- [x] Linting (golangci-lint)
 
 ---
 
-## What is CI/CD Automated Testing?
+## 🔧 To Connect Database
 
-**Continuous Integration / Continuous Deployment** - Automatically runs tests and deploys code.
-
-### How it works:
+### Option 1: Run from Environment with DB Access
+```bash
+# On a server or machine with direct internet access to Supabase
+git clone https://github.com/tansilandre/NER_AI_Image.git
+cd NER_AI_Image/apps/api
+cp .env.example .env
+# Edit .env with your DATABASE_URL
+make dev-api
 ```
-Developer pushes code → GitHub Actions → Tests run → Deploy if pass
-         ↑                                                    ↓
-         └──────────── Feedback (pass/fail) ←─────────────────┘
+
+### Option 2: Use Supabase Local
+```bash
+# Install Supabase CLI
+npm install -g supabase
+
+# Start local database
+supabase start
+
+# Update .env
+DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
+
+# Run migrations
+psql $DATABASE_URL -f supabase/migrations/001_create_organizations.sql
+# ... run all migrations
+
+# Start server
+make dev-api
 ```
 
-### Our Pipeline:
-1. **Push/PR triggers** → GitHub Actions starts
-2. **Checkout code** → Fresh Ubuntu machine
-3. **Setup Go** → Install Go 1.23
-4. **Cache modules** → Speed up builds
-5. **Run linter** → Code quality check
-6. **Run unit tests** → Fast tests without DB
-7. **Start PostgreSQL** → For integration tests
-8. **Run integration tests** → Tests with real DB
-9. **Build Docker image** → Verify container builds
-10. **Deploy** → Push to production (main branch only)
+### Option 3: Whitelist IP in Supabase
+1. Go to https://supabase.com/dashboard
+2. Select your project
+3. Settings → Database
+4. Under "IPv4", add your current IP address
+5. Save and retry connection
 
-### Benefits:
-- ✅ Catches bugs before merging
-- ✅ Prevents broken deployments
-- ✅ Team confidence in main branch
-- ✅ No manual testing required
+### Test Connection
+```bash
+# Test with utility
+cd apps/api
+go run cmd/dbtest/main.go
+
+# Or run full server
+make dev-api
+```
 
 ---
 
-## Phase 2: Frontend (Next)
+## 📁 Project Structure on GitHub
 
-### Setup
-- [ ] Vite + React 19 + Tailwind 4
-- [ ] Zustand stores
-- [ ] API client
-
-### Pages
-- [ ] Login
-- [ ] Onboarding
-- [ ] Generate (main workspace)
-- [ ] Gallery
-- [ ] Admin panels
+```
+https://github.com/tansilandre/NER_AI_Image
+├── apps/api/                 # Go backend
+│   ├── cmd/
+│   │   ├── server/main.go   # API server
+│   │   └── dbtest/main.go   # DB test utility
+│   ├── internal/            # All packages
+│   ├── go.mod
+│   └── Dockerfile
+├── supabase/migrations/      # 9 SQL files
+├── scripts/                  # Helper scripts
+│   ├── test-db.sh
+│   └── run-migrations.sh
+├── docs/                     # Documentation
+│   ├── DATABASE_SETUP.md
+│   ├── TESTING.md
+│   └── ...
+├── .github/workflows/        # CI/CD
+└── README.md
+```
 
 ---
 
-## Phase 3: Deployment (Pending)
+## 🚀 Next Steps
 
-- [ ] Docker setup ✅ (API Dockerfile done)
-- [ ] CI/CD pipelines ✅ (GitHub Actions configured)
-- [ ] Environment configs
+### Database Connection (Priority)
+1. Run from environment with DB access, OR
+2. Use Supabase local development, OR  
+3. Whitelist IP in Supabase dashboard
+
+### Then
+- Run migrations to create tables
+- Test full API with database
+- Run integration tests
+
+### Future (Deployment Phase)
+- Set up Railway/Fly.io/Vercel
+- Configure production environment
+- Enable CI/CD deployments
+
+---
+
+## 📊 Current Test Status
+
+```
+✅ All unit tests passing
+✅ Server builds successfully
+✅ Code pushed to GitHub
+⏳ Database connection (requires environment with network access)
+⏳ Integration tests (pending DB connection)
+```
