@@ -2,7 +2,7 @@
 CREATE TABLE credit_ledger (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     organization_id UUID NOT NULL REFERENCES organizations(id) ON DELETE CASCADE,
-    user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount BIGINT NOT NULL, -- positive = add, negative = deduct
     type TEXT NOT NULL CHECK (type IN ('generation', 'refund', 'purchase', 'adjustment')),
     description TEXT NOT NULL,
@@ -14,9 +14,6 @@ CREATE TABLE credit_ledger (
 CREATE INDEX idx_credit_ledger_organization_id ON credit_ledger(organization_id);
 CREATE INDEX idx_credit_ledger_user_id ON credit_ledger(user_id);
 CREATE INDEX idx_credit_ledger_created_at ON credit_ledger(created_at DESC);
-
--- Enable RLS
-ALTER TABLE credit_ledger ENABLE ROW LEVEL SECURITY;
 
 -- Function to atomically deduct credits
 CREATE OR REPLACE FUNCTION deduct_credits(
@@ -68,4 +65,4 @@ BEGIN
 
     RETURN TRUE;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql;

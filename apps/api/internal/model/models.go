@@ -111,6 +111,15 @@ type Invitation struct {
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 }
 
+// User represents an application user
+type User struct {
+	ID        uuid.UUID `json:"id" db:"id"`
+	Email     string    `json:"email" db:"email"`
+	Password  string    `json:"-" db:"password_hash"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
 // VisionAnalysisResult holds the output from vision analysis
 type VisionAnalysisResult struct {
 	Description string `json:"description"`

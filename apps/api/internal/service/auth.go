@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/ner-studio/api/internal/model"
@@ -23,40 +22,34 @@ func NewAuthService(repo *repository.Repository) *AuthService {
 	}
 }
 
-// User represents a user in the system
-type User struct {
-	ID        uuid.UUID
-	Email     string
-	Password  string // hashed
-	CreatedAt time.Time
-	UpdatedAt time.Time
-}
-
 // CreateUser creates a new user with hashed password
-func (s *AuthService) CreateUser(ctx context.Context, email, password string) (*User, error) {
+func (s *AuthService) CreateUser(ctx context.Context, email, password string) (*model.User, error) {
 	// Hash password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	user := &User{
-		ID:       uuid.New(),
-		Email:    email,
-		Password: string(hashedPassword),
-	}
-
-	// TODO: Save to database
-	// For now, we'll need to add a users table
-
-	return user, nil
+	return s.repo.CreateUser(ctx, email, string(hashedPassword))
 }
 
 // AuthenticateUser verifies email/password and returns user
-func (s *AuthService) AuthenticateUser(ctx context.Context, email, password string) (*User, error) {
-	// TODO: Get user from database by email
-	// For now, return error
-	return nil, fmt.Errorf("authentication not implemented - need users table")
+func (s *AuthService) AuthenticateUser(ctx context.Context, email, password string) (*model.User, error) {
+	// Get user from database
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if err != nil {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	// Verify password
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return nil, fmt.Errorf("invalid credentials")
+	}
+
+	// Update last login
+	_ = s.repo.UpdateUserLastLogin(ctx, user.ID)
+
+	return user, nil
 }
 
 // GetUserProfile retrieves user profile
@@ -108,7 +101,7 @@ func (s *AuthService) JoinOrganization(ctx context.Context, userID, fullName, in
 }
 
 func generateSlug(name string) string {
-	// Simple slug generation - replace with proper implementation
+	// Simple slug generation
 	slug := ""
 	for _, c := range name {
 		if c >= 'a' && c <= 'z' || c >= '0' && c <= '9' {
