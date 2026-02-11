@@ -32,7 +32,7 @@ dev-api:
 .PHONY: dev-web
 dev-web:
 	@echo "$(GREEN)Starting web server...$(RESET)"
-	@cd apps/web && pnpm dev
+	@cd apps/web && npm run dev
 
 ## build-api: Build Go binary
 .PHONY: build-api
@@ -44,7 +44,7 @@ build-api:
 .PHONY: build-web
 build-web:
 	@echo "$(GREEN)Building Web...$(RESET)"
-	@cd apps/web && pnpm build
+	@cd apps/web && npm run build
 
 ## build: Build both frontend and backend
 .PHONY: build
@@ -60,7 +60,7 @@ test-api:
 .PHONY: test-web
 test-web:
 	@echo "$(GREEN)Running Web tests...$(RESET)"
-	@cd apps/web && pnpm test
+	@cd apps/web && npm test
 
 ## test: Run all tests
 .PHONY: test
@@ -76,7 +76,7 @@ lint-api:
 .PHONY: lint-web
 lint-web:
 	@echo "$(GREEN)Linting Web...$(RESET)"
-	@cd apps/web && pnpm lint
+	@cd apps/web && npm run lint
 
 ## lint: Run all linters
 .PHONY: lint
@@ -122,7 +122,7 @@ deps-api:
 .PHONY: deps-web
 deps-web:
 	@echo "$(GREEN)Installing Web dependencies...$(RESET)"
-	@cd apps/web && pnpm install
+	@cd apps/web && npm install
 
 ## deps: Install all dependencies
 .PHONY: deps

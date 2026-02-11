@@ -1,0 +1,141 @@
+@import "tailwindcss";
+
+/* Bauhaus Design System */
+:root {
+  /* Primary Colors */
+  --color-red: #E63946;
+  --color-yellow: #F4A100;
+  --color-blue: #1D3557;
+  
+  /* Neutral Colors */
+  --color-white: #FFFFFF;
+  --color-off-white: #F8F8F8;
+  --color-black: #1A1A1A;
+  --color-gray: #6B7280;
+  --color-light-gray: #E5E7EB;
+  
+  /* Typography */
+  --font-heading: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+}
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-family: var(--font-body);
+  background-color: var(--color-off-white);
+  color: var(--color-black);
+}
+
+/* Bauhaus Typography */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 700;
+}
+
+h1 {
+  font-size: 32px;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: 24px;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: 18px;
+  line-height: 1.4;
+}
+
+/* Geometric Button Style */
+.btn {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 12px 24px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-primary {
+  background-color: var(--color-yellow);
+  color: var(--color-black);
+}
+
+.btn-primary:hover {
+  background-color: #d99000;
+}
+
+.btn-secondary {
+  background-color: var(--color-blue);
+  color: var(--color-white);
+}
+
+.btn-secondary:hover {
+  background-color: #152a45;
+}
+
+/* Card Style */
+.card {
+  background-color: var(--color-white);
+  border: 1px solid var(--color-light-gray);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Input Style */
+.input {
+  font-family: var(--font-body);
+  padding: 12px 16px;
+  border: none;
+  border-bottom: 2px solid var(--color-light-gray);
+  background-color: transparent;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  outline: none;
+  border-bottom-color: var(--color-blue);
+}
+
+/* Sidebar */
+.sidebar {
+  background-color: var(--color-white);
+  border-right: 1px solid var(--color-light-gray);
+}
+
+/* Animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.animate-pulse {
+  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Geometric Shapes for Decoration */
+.shape-circle {
+  border-radius: 50%;
+}
+
+.shape-square {
+  border-radius: 0;
+}
+
+.shape-triangle {
+  width: 0;
+  height: 0;
+  border-left: 50px solid transparent;
+  border-right: 50px solid transparent;
+  border-bottom: 86.6px solid var(--color-red);
+}
