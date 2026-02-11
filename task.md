@@ -2,47 +2,43 @@
 
 > Last Updated: 2026-02-11
 
-## ✅ Status Update
+## ✅ Status: Ready to Run Migrations
 
-### Database Connection: PARTIALLY WORKING ✅
+### Database Connection
+- ✅ Pooler connection string updated
+- ⏳ Waiting for correct password in `.env`
+- ✅ Migration runner created (`cmd/migrate`)
 
-| Method | Status | Details |
-|--------|--------|---------|
-| **Supabase Go Client** | ✅ **CONNECTED** | Using API keys - works! |
-| **PostgreSQL Pooler** | ❌ Failed | "Tenant or user not found" |
-| **Direct PostgreSQL** | ❌ Failed | Network routing issue |
+### To Run Migrations:
 
-### Test Result
-```
-✅ Supabase Go Client: Connected successfully!
-❌ PostgreSQL Pooler: Tenant or user not found
+1. **Update `.env` with correct password** (you said it's connected, so use that password):
+```env
+DATABASE_URL=postgresql://postgres.rdkuodxdgcmcszogibdu:YOUR_PASSWORD@aws-1-ap-northeast-1.pooler.supabase.com:5432/postgres
 ```
 
-**The database IS accessible** via Supabase Go client! We just need to create tables.
-
----
-
-## 🔧 Next: Create Database Tables
-
-Since Supabase Go client works, we have two options:
-
-### Option 1: Run Migrations via Supabase Dashboard (Easiest)
-1. Go to https://supabase.com/dashboard/project/rdkuodxdgcmcszogibdu
-2. Click **SQL Editor**
-3. Copy and paste each migration file from `supabase/migrations/`
-4. Run them in order (001 through 010)
-
-### Option 2: Modify Code to Use Supabase Client
-Instead of `pgx` (PostgreSQL driver), we can use the Supabase Go client which already works.
-
-This requires refactoring the repository layer to use:
-```go
-client.From("table").Select(...).Execute()
+2. **Run migrations**:
+```bash
+cd apps/api
+go run cmd/migrate/main.go
 ```
-instead of:
-```go
-pool.Query(ctx, "SELECT ...")
+
+3. **Verify**:
+```bash
+go run cmd/dbtest/main.go
 ```
+
+Should see: `✅ Supabase client connection successful!`
+
+### Migration Files (9 total)
+- `001_create_organizations.sql`
+- `002_create_profiles.sql`
+- `003_create_generations.sql`
+- `004_create_generation_images.sql`
+- `005_create_credit_ledger.sql`
+- `006_create_invitations.sql`
+- `007_create_providers.sql`
+- `008_create_rls_policies.sql`
+- `010_seed_providers.sql`
 
 ---
 
@@ -50,17 +46,18 @@ pool.Query(ctx, "SELECT ...")
 
 ```
 ✅ Code on GitHub
-✅ Supabase client connection works
-✅ All unit tests pass
-⏳ Need to create database tables (migrations)
-⏳ Integration tests (after tables created)
+✅ Migration runner created
+⏳ Need correct password in .env
+⏳ Run migrations
+⏳ Start server
 ```
 
-## 🚀 Recommended Next Steps
+## 🚀 After Migrations
 
-1. **Go to Supabase Dashboard** → SQL Editor
-2. **Run migrations** (copy from supabase/migrations/)
-3. **Test again**: `cd apps/api && go run cmd/dbtest/main.go`
-4. Should see: "✅ Found X organizations"
+Once migrations run successfully:
+```bash
+cd apps/api
+make dev-api  # Start server
+```
 
-Then we can start the server and it will work!
+The API will be fully functional with database!
