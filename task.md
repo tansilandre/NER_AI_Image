@@ -4,133 +4,93 @@
 
 ## ✅ Completed Tasks
 
-### 1. Git Configuration ✅
-- [x] Root `.gitignore` (Go, Node, IDE, OS files)
-- [x] `apps/api/.gitignore` (API specific)
-- [x] `.gitattributes` (line endings)
-- [x] Git repo initialized
-- [x] Connected to https://github.com/tansilandre/NER_AI_Image
-- [x] Code pushed to GitHub
+### 1. Git & GitHub ✅
+- [x] `.gitignore` and `.gitattributes`
+- [x] Git repo initialized and pushed
+- [x] Code on GitHub: https://github.com/tansilandre/NER_AI_Image
 
-### 2. Database Setup ✅
-- [x] Database connection test utility (`apps/api/cmd/dbtest/main.go`)
-- [x] Migration runner script (`scripts/run-migrations.sh`)
-- [x] Database test script (`scripts/test-db.sh`)
-- [x] Database setup documentation (`docs/DATABASE_SETUP.md`)
-- [x] SQL migrations (9 files in `supabase/migrations/`)
+### 2. Database Connection Attempts ✅
+- [x] Tried direct connection (port 5432) - ❌ Blocked
+- [x] Tried transaction pooler (port 6543) - ❌ "Tenant not found"
+- [x] Tried session pooler (port 5432) - ❌ "Tenant not found"
+- [x] Added connection troubleshooting docs
 
-### Current Status: Database Connection Issue
+## 🔴 Current Issue: Cannot Connect to Supabase
+
+### Error Messages:
 ```
-❌ Cannot connect to Supabase from current environment
-   Reason: "no route to host" - network routing issue
-   
-✅ Server starts and runs (without DB connection)
-✅ All unit tests pass
-✅ Code is on GitHub
+Direct connection:      "no route to host"
+Transaction pooler:     "FATAL: Tenant or user not found"
+Session pooler:         "FATAL: Tenant or user not found"
 ```
+
+### Root Cause:
+The connection pooler needs to be **enabled** in Supabase dashboard first.
 
 ---
 
-## 🔧 To Connect Database
+## 🔧 Solutions to Try:
 
-### Option 1: Run from Environment with DB Access
-```bash
-# On a server or machine with direct internet access to Supabase
-git clone https://github.com/tansilandre/NER_AI_Image.git
-cd NER_AI_Image/apps/api
-cp .env.example .env
-# Edit .env with your DATABASE_URL
-make dev-api
+### Option 1: Enable Pooler in Supabase (Easiest)
+1. Go to https://supabase.com/dashboard/project/rdkuodxdgcmcszogibdu
+2. Click **Database** → **Connection Pooling**
+3. Click **Enable Connection Pooling**
+4. Wait 2-3 minutes
+5. Copy the "Transaction pooler" URI
+6. Update `.env`:
+```env
+DATABASE_URL=postgresql://postgres.rdkuodxdgcmcszogibdu:[PASSWORD]@aws-0-ap-southeast-1.pooler.supabase.com:6543/postgres
 ```
 
-### Option 2: Use Supabase Local
+### Option 2: Supabase Local (Recommended for Dev)
 ```bash
-# Install Supabase CLI
 npm install -g supabase
-
-# Start local database
+supabase login
+supabase link --project-ref rdkuodxdgcmcszogibdu
 supabase start
 
 # Update .env
 DATABASE_URL=postgresql://postgres:postgres@localhost:54322/postgres
 
-# Run migrations
-psql $DATABASE_URL -f supabase/migrations/001_create_organizations.sql
-# ... run all migrations
-
-# Start server
+# Run server
 make dev-api
 ```
 
-### Option 3: Whitelist IP in Supabase
-1. Go to https://supabase.com/dashboard
-2. Select your project
-3. Settings → Database
-4. Under "IPv4", add your current IP address
-5. Save and retry connection
-
-### Test Connection
-```bash
-# Test with utility
-cd apps/api
-go run cmd/dbtest/main.go
-
-# Or run full server
-make dev-api
-```
+### Option 3: Deploy to Railway/Fly.io
+Deploy the backend to a server with direct network access.
 
 ---
 
-## 📁 Project Structure on GitHub
+## 📁 Files Changed
 
 ```
-https://github.com/tansilandre/NER_AI_Image
-├── apps/api/                 # Go backend
-│   ├── cmd/
-│   │   ├── server/main.go   # API server
-│   │   └── dbtest/main.go   # DB test utility
-│   ├── internal/            # All packages
-│   ├── go.mod
-│   └── Dockerfile
-├── supabase/migrations/      # 9 SQL files
-├── scripts/                  # Helper scripts
-│   ├── test-db.sh
-│   └── run-migrations.sh
-├── docs/                     # Documentation
-│   ├── DATABASE_SETUP.md
-│   ├── TESTING.md
-│   └── ...
-├── .github/workflows/        # CI/CD
-└── README.md
+apps/api/.env                                          # Updated DATABASE_URL
+docs/DATABASE_CONNECTION_TROUBLESHOOTING.md            # New troubleshooting guide
 ```
-
----
 
 ## 🚀 Next Steps
 
-### Database Connection (Priority)
-1. Run from environment with DB access, OR
-2. Use Supabase local development, OR  
-3. Whitelist IP in Supabase dashboard
+1. **Enable Connection Pooler** in Supabase dashboard, OR
+2. **Use Supabase Local** for development, OR
+3. **Deploy to server** with network access
 
-### Then
-- Run migrations to create tables
-- Test full API with database
-- Run integration tests
-
-### Future (Deployment Phase)
-- Set up Railway/Fly.io/Vercel
-- Configure production environment
-- Enable CI/CD deployments
+Once connected:
+```bash
+cd apps/api
+go run cmd/dbtest/main.go      # Test connection
+./scripts/run-migrations.sh     # Create tables
+make dev-api                    # Start server
+```
 
 ---
 
-## 📊 Current Test Status
+## 📊 Current Status
 
 ```
+✅ Code pushed to GitHub
 ✅ All unit tests passing
 ✅ Server builds successfully
-✅ Code pushed to GitHub
-⏳ Database connection (requires environment with network access)
+⏳ Database connection (waiting for pooler enablement)
+⏳ Migrations (pending DB connection)
 ⏳ Integration tests (pending DB connection)
 ```
