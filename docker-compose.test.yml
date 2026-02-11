@@ -1,0 +1,29 @@
+# Docker Compose for Integration Testing
+# Usage: docker-compose -f docker-compose.test.yml up -d
+
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ner_studio_test
+    ports:
+      - "54322:5432"  # Map to 54322 to avoid conflicts
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    tmpfs:
+      - /var/lib/postgresql/data  # In-memory DB for fast tests
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+# Run tests with:
+# DATABASE_URL=postgres://postgres:postgres@localhost:54322/ner_studio_test?sslmode=disable go test ./internal/repository -v

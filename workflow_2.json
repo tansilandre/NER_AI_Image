@@ -1,0 +1,443 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "path": "check-kei",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -368,
+        64
+      ],
+      "id": "98c76a59-18e4-4c77-9f2a-8aa1d27ecacb",
+      "name": "Webhook",
+      "webhookId": "93edc1e8-86b5-4915-befa-2538085c6d5e",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "NK8cqI6au0zvpeZM",
+          "name": "ner-admin"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/jobs/recordInfo",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "taskId",
+              "value": "={{ $('Webhook').item.json.query.taskid }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        80,
+        -32
+      ],
+      "id": "330da70f-559c-4177-8e56-b8075d90e3c2",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "czwY13Vstp9FKXS7",
+          "name": "kie.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "0b83c514-abd0-45d0-bed3-6eefd4964409",
+              "leftValue": "={{ $json.query.taskid }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -144,
+        64
+      ],
+      "id": "36425dbd-bac8-4bd1-8a19-d353573ca731",
+      "name": "If"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        80,
+        160
+      ],
+      "id": "27bfad22-fd25-40fa-93e0-5ca098d59b0a",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "path": "credit-kei",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -352,
+        256
+      ],
+      "id": "3a08a630-563a-4e03-b4a5-16fcbc679e13",
+      "name": "Webhook1",
+      "webhookId": "93edc1e8-86b5-4915-befa-2538085c6d5e",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "NK8cqI6au0zvpeZM",
+          "name": "ner-admin"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "https://api.kie.ai/api/v1/chat/credit",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -160,
+        256
+      ],
+      "id": "68f1d7a9-9c26-4efd-b868-6b924c0051c8",
+      "name": "HTTP Request1",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "czwY13Vstp9FKXS7",
+          "name": "kie.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "url",
+              "value": "=https://bucket.tansil.pro/{{ $('Set Filename').first().json.filename }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        960,
+        480
+      ],
+      "id": "d17a2cf0-3dfd-4d4a-bf0d-65d72b97a78c",
+      "name": "Set URL"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "filename",
+              "value": "={{ $now.format('yyyyMMddHHmmss') }}_{{ $json.id || $runIndex }}.{{ $binary.data.fileExtension }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [
+        608,
+        480
+      ],
+      "id": "2cdd4414-563f-4eda-90dd-9faef9c9ec49",
+      "name": "Set Filename"
+    },
+    {
+      "parameters": {
+        "operation": "upload",
+        "bucketName": "ner-storage",
+        "fileName": "={{ $json.filename }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [
+        784,
+        480
+      ],
+      "id": "d547d54b-8b6a-4f88-9a6c-1bdc122a498f",
+      "name": "Upload to R2",
+      "credentials": {
+        "s3": {
+          "id": "CkOROcXPVzrVlGzH",
+          "name": "S3 account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "image-upload",
+        "authentication": "basicAuth",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        432,
+        480
+      ],
+      "id": "ab7b4888-5b8e-4056-8e71-9a7a535a44d3",
+      "name": "Webhook2",
+      "webhookId": "052500b1-04ab-40dd-a741-3d276f5b79d9",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "NK8cqI6au0zvpeZM",
+          "name": "ner-admin"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        []
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Filename": {
+      "main": [
+        [
+          {
+            "node": "Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload to R2": {
+      "main": [
+        [
+          {
+            "node": "Set URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook2": {
+      "main": [
+        [
+          {
+            "node": "Set Filename",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upload to R2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook": [
+      {
+        "headers": {
+          "connection": "Keep-Alive",
+          "host": "n8n.tansil.pro",
+          "x-forwarded-scheme": "https",
+          "x-forwarded-proto": "https",
+          "x-forwarded-for": "140.213.134.215, 162.158.163.127",
+          "x-real-ip": "162.158.163.127",
+          "priority": "u=1, i",
+          "sec-ch-ua-platform": "\"macOS\"",
+          "authorization": "Basic bmVyLWFkbWluOmdlbmVyYXRlM1ghISE=",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+          "sec-ch-ua": "\"Chromium\";v=\"136\", \"Google Chrome\";v=\"136\", \"Not.A/Brand\";v=\"99\"",
+          "content-type": "application/json",
+          "sec-ch-ua-mobile": "?0",
+          "accept": "*/*",
+          "origin": "http://localhost:8081",
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "referer": "http://localhost:8081/",
+          "accept-encoding": "gzip, br",
+          "accept-language": "en-US,en;q=0.9,ko;q=0.8,zh;q=0.7,id;q=0.6",
+          "cf-ray": "9c5aa476ba23c1c8-SIN",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "140.213.134.215",
+          "cf-ipcountry": "ID",
+          "cf-visitor": "{\"scheme\":\"https\"}"
+        },
+        "params": {},
+        "query": {
+          "taskid": "411ff1afb52b0c47e4143a944d6628e8"
+        },
+        "body": {},
+        "webhookUrl": "https://n8n.tansil.pro/webhook/check-kei",
+        "executionMode": "production"
+      }
+    ],
+    "Webhook1": [
+      {
+        "headers": {
+          "connection": "Keep-Alive",
+          "host": "n8n.tansil.pro",
+          "x-forwarded-scheme": "https",
+          "x-forwarded-proto": "https",
+          "x-forwarded-for": "140.213.134.215, 162.158.163.127",
+          "x-real-ip": "162.158.163.127",
+          "priority": "u=1, i",
+          "sec-ch-ua-platform": "\"macOS\"",
+          "authorization": "Basic bmVyLWFkbWluOmdlbmVyYXRlM1ghISE=",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+          "sec-ch-ua": "\"Chromium\";v=\"136\", \"Google Chrome\";v=\"136\", \"Not.A/Brand\";v=\"99\"",
+          "content-type": "application/json",
+          "sec-ch-ua-mobile": "?0",
+          "accept": "*/*",
+          "origin": "http://localhost:8081",
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "referer": "http://localhost:8081/",
+          "accept-encoding": "gzip, br",
+          "accept-language": "en-US,en;q=0.9,ko;q=0.8,zh;q=0.7,id;q=0.6",
+          "cf-ray": "9c5aa476ba23c1c8-SIN",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "140.213.134.215",
+          "cf-ipcountry": "ID",
+          "cf-visitor": "{\"scheme\":\"https\"}"
+        },
+        "params": {},
+        "query": {
+          "taskid": "411ff1afb52b0c47e4143a944d6628e8"
+        },
+        "body": {},
+        "webhookUrl": "https://n8n.tansil.pro/webhook/check-kei",
+        "executionMode": "production"
+      }
+    ],
+    "Webhook2": [
+      {
+        "headers": {
+          "connection": "Keep-Alive",
+          "host": "n8n.tansil.pro",
+          "x-forwarded-scheme": "https",
+          "x-forwarded-proto": "https",
+          "x-forwarded-for": "140.213.134.215, 172.71.81.179",
+          "x-real-ip": "172.71.81.179",
+          "content-length": "1142619",
+          "priority": "u=1, i",
+          "sec-ch-ua-platform": "\"macOS\"",
+          "authorization": "Basic bmVyLWFkbWluOmdlbmVyYXRlM1ghISE=",
+          "user-agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
+          "sec-ch-ua": "\"Chromium\";v=\"136\", \"Google Chrome\";v=\"136\", \"Not.A/Brand\";v=\"99\"",
+          "content-type": "image/png",
+          "sec-ch-ua-mobile": "?0",
+          "accept": "*/*",
+          "origin": "http://localhost:8081",
+          "sec-fetch-site": "cross-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "referer": "http://localhost:8081/",
+          "accept-encoding": "gzip, br",
+          "accept-language": "en-US,en;q=0.9,ko;q=0.8,zh;q=0.7,id;q=0.6",
+          "cf-ray": "9c5a98ea2f3c9c9f-SIN",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "140.213.134.215",
+          "cf-ipcountry": "ID",
+          "cf-visitor": "{\"scheme\":\"https\"}"
+        },
+        "params": {},
+        "query": {},
+        "body": {},
+        "webhookUrl": "https://n8n.tansil.pro/webhook/image-upload",
+        "executionMode": "production"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc0bca617a3c9e12fd7b5834d80f66965105c88ed5c2320f0c1e5e40731c0a61"
+  }
+}

@@ -1,0 +1,137 @@
+# CI/CD Pipeline for NER Studio
+# This file runs automated tests on every push and pull request
+
+name: Test & Build
+
+# When to run
+triggers:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+# Jobs to run
+jobs:
+  # Job 1: Test Backend (Go)
+  test-api:
+    runs-on: ubuntu-latest  # Run on fresh Ubuntu machine
+    
+    services:
+      # Start PostgreSQL service for integration tests
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_db
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+    # Step 1: Checkout code
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Step 2: Setup Go
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.23'
+
+    # Step 3: Cache Go modules (speeds up builds)
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('apps/api/go.sum') }}
+
+    # Step 4: Install dependencies
+    - name: Install dependencies
+      working-directory: apps/api
+      run: go mod download
+
+    # Step 5: Run linter (code quality check)
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v3
+      with:
+        version: latest
+        working-directory: apps/api
+        args: --timeout=5m
+
+    # Step 6: Run unit tests (fast, no DB)
+    - name: Run unit tests
+      working-directory: apps/api
+      run: go test ./... -v -short
+      env:
+        SKIP_DB_TESTS: "1"  # Skip integration tests in unit test phase
+
+    # Step 7: Run integration tests (with DB)
+    - name: Run integration tests
+      working-directory: apps/api
+      run: go test ./internal/repository -v
+      env:
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/test_db?sslmode=disable
+
+    # Step 8: Build binary (verify compilation)
+    - name: Build binary
+      working-directory: apps/api
+      run: go build -o server cmd/server/main.go
+
+    # Step 9: Upload coverage report
+    - name: Upload coverage
+      uses: codecov/codecov-action@v3
+      with:
+        files: ./apps/api/coverage.out
+        flags: backend
+        name: backend-coverage
+
+  # Job 2: Build & Push Docker Image (only on main branch)
+  docker-build:
+    needs: test-api  # Only run if tests pass
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+
+    - name: Build Docker image
+      working-directory: apps/api
+      run: |
+        docker build -t ner-studio-api:${{ github.sha }} .
+        docker tag ner-studio-api:${{ github.sha }} ner-studio-api:latest
+
+    # Optional: Push to Docker Hub or GitHub Container Registry
+    # - name: Login to Docker Hub
+    #   uses: docker/login-action@v3
+    #   with:
+    #     username: ${{ secrets.DOCKER_USERNAME }}
+ # password: ${{ secrets.DOCKER_PASSWORD }}
+    #
+    # - name: Push Docker image
+    #   run: |
+    #     docker push ner-studio-api:${{ github.sha }}
+    #     docker push ner-studio-api:latest
+
+  # Job 3: Deploy (only on main branch after tests pass)
+  deploy:
+    needs: [test-api, docker-build]
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Deploy to production
+      run: |
+        echo "Deploying to production..."
+        # Add your deployment commands here
+        # Example: Railway, Fly.io, AWS, etc.
+      env:
+        DEPLOY_TOKEN: ${{ secrets.DEPLOY_TOKEN }}

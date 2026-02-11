@@ -1,0 +1,867 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "image-batch",
+        "authentication": "basicAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        -128
+      ],
+      "id": "8b128956-596f-453e-a1eb-d475ec2f537f",
+      "name": "Webhook Trigger",
+      "webhookId": "9498f80c-b1e9-4610-b638-d4fcb321bb4f",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "NK8cqI6au0zvpeZM",
+          "name": "ner-admin"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || input;\n\n// Extract data from webhook payload\nconst referenceImageUrls = body.referenceImages || [];\nconst productImageUrls = body.productImages || [];\nconst initialPrompt = body.initialPrompt || '';\nconst numberOfPrompts = body.numberOfPrompts || 3;\n\nconst items = [];\n\n// Process reference images\nreferenceImageUrls.forEach((url, index) => {\n  items.push({\n    json: {\n      url: url,\n      originalField: `Image_Reference_${index + 1}`,\n      id: `image_reference_${index + 1}`,\n      initialPrompt: initialPrompt,\n      numberOfPrompts: numberOfPrompts,\n      imageType: 'reference'\n    }\n  });\n});\n\n// Process product images\nproductImageUrls.forEach((url, index) => {\n  items.push({\n    json: {\n      url: url,\n      originalField: `Image_Product_${index + 1}`,\n      id: `image_product_${index + 1}`,\n      initialPrompt: initialPrompt,\n      numberOfPrompts: numberOfPrompts,\n      imageType: 'product'\n    }\n  });\n});\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        -128
+      ],
+      "id": "95641140-0ed3-4dcf-964c-271249bd94d9",
+      "name": "Process Webhook Input"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.imageType }}",
+              "rightValue": "reference",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -144,
+        -128
+      ],
+      "id": "9514b020-e435-43f0-94b4-f776c765899b",
+      "name": "Is Reference Image?"
+    },
+    {
+      "parameters": {
+        "resource": "image",
+        "operation": "analyze",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "text": "You are an expert image analyst tasked with providing detailed accurate and helpful descriptions of images. Your goal is to make visual content accessible through clear comprehensive text descriptions. Be objective and factual using clear descriptive language. Organize information from general to specific and include relevant context. Start with a brief overview of what the image shows then describe the main subjects and setting. Include visual details like colors lighting, textures, style, genre, contrast and composition. Transcribe any visible text accurately. Use specific concrete language and mention spatial relationships. For people focus on actions clothing and general appearance respectfully. For data visualizations explain the information presented. Write as if describing to someone who cannot see the image including important context for understanding. Balance thoroughness with clarity and provide descriptions in natural flowing narrative form. Your description shouldn't be longer than 500 characters",
+        "imageUrls": "={{ $json.url }}",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        80,
+        -224
+      ],
+      "id": "62a0e970-1117-4bbe-8e4a-8d4ff36598f8",
+      "name": "Analyze Reference Image",
+      "credentials": {
+        "openAiApi": {
+          "id": "yfZJW5V1cTcYZBix",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nreturn items.map(item => ({\n  json: {\n    url: item.json.url,\n    originalField: item.json.originalField,\n    imageType: 'product'\n  }\n}));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -32
+      ],
+      "id": "cb43a2a9-079f-442e-a77c-2222b5b9157f",
+      "name": "Product URLs Only"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst processedItems = $('Process Webhook Input').all();\n\n// Filter to only get reference items\nconst referenceUrlItems = processedItems.filter(item => item.json.imageType === 'reference');\n\nreturn items.map((item, index) => {\n  // Handle the nested array structure: [[{content: [{text: \"...\"}]}]]\n  let analysisText = '';\n  \n  // The response is nested in an array\n  const responseData = Array.isArray(item.json) ? item.json[0] : item.json;\n  \n  if (responseData && responseData.content && Array.isArray(responseData.content)) {\n    // Get text from content[0].text\n    const textContent = responseData.content.find(c => c.type === 'output_text');\n    analysisText = textContent?.text || responseData.content[0]?.text || '';\n  }\n  \n  // Get URL and originalField from the corresponding item\n  const urlItem = referenceUrlItems[index];\n  \n  return {\n    json: {\n      url: urlItem?.json?.url || '',\n      originalField: urlItem?.json?.originalField || '',\n      imageType: 'reference',\n      analysis: analysisText\n    }\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        -224
+      ],
+      "id": "7c02cc4c-038a-4318-9935-ee1998e846df",
+      "name": "Format Reference Results"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        528,
+        -128
+      ],
+      "id": "051a32d3-5462-4727-810b-2d91d7027603",
+      "name": "Merge All Results"
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst result = {\n  referenceImages: [],\n  productImages: [],\n  initialPrompt: '',\n  numberOfPrompts: 3\n};\n\nfor (const item of items) {\n  const data = item.json;\n  \n  if (data.imageType === 'reference') {\n    result.referenceImages.push({\n      url: data.url,\n      field: data.originalField,\n      analysis: data.analysis || ''\n    });\n  } else if (data.imageType === 'product') {\n    result.productImages.push({\n      url: data.url,\n      field: data.originalField\n    });\n  }\n}\n\ntry {\n  result.initialPrompt = $('Process Webhook Input').first().json.initialPrompt || '';\n  result.numberOfPrompts = $('Process Webhook Input').first().json.numberOfPrompts || 3;\n} catch (e) {\n  result.initialPrompt = '';\n  result.numberOfPrompts = 3;\n}\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        752,
+        -128
+      ],
+      "id": "35737bdf-5599-4ade-b8f1-93074f962f77",
+      "name": "Build Final Output"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/api/v1/jobs/createTask",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"seedream/4.5-edit\",\n  \"callBackUrl\": \"https://n8n.tansil.pro/webhook/kie-callback\",\n  \"input\": {\n    \"prompt\": {{ JSON.stringify($json.prompt) }},\n    \"image_urls\": {{ JSON.stringify($json.productImageUrls) }},\n    \"aspect_ratio\": \"9:16\",\n    \"quality\": \"high\"\n  }\n}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1840,
+        -48
+      ],
+      "id": "8ddaa4a2-3d46-4236-a682-6435c3c9616d",
+      "name": "Generate Image API",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "VfR467vy3wGZ1Abu",
+          "name": "custom-token"
+        },
+        "httpBearerAuth": {
+          "id": "czwY13Vstp9FKXS7",
+          "name": "kie.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nconst results = items.map((item, index) => {\n  return {\n    taskId: item.json.data?.taskId || item.json.taskId || item.json.id,\n    promptIndex: index,\n    status: item.json.status || item.json.data?.status || 'submitted',\n    response: item.json\n  };\n});\n\nreturn [{\n  json: {\n    message: 'Image generation tasks submitted',\n    tasks: results,\n    totalTasks: results.length\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2048,
+        -128
+      ],
+      "id": "d0c7844b-73f3-40ca-977a-7caaa6dc9ba5",
+      "name": "Format Final Response"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kie-callback",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -592,
+        192
+      ],
+      "id": "7e8ffac5-bbcb-4c0a-b633-902fa31121f6",
+      "name": "Image Generation Callback",
+      "webhookId": "image-generation-callback-001"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst body = input.body || input;\n\n// Parse resultJson if it's a string\nlet resultUrls = [];\nif (body.data?.resultJson) {\n  try {\n    const resultData = typeof body.data.resultJson === 'string' \n      ? JSON.parse(body.data.resultJson) \n      : body.data.resultJson;\n    resultUrls = resultData.resultUrls || [];\n  } catch (e) {\n    resultUrls = [];\n  }\n}\n\n// Extract all relevant data\nconst result = {\n  success: body.code === 200 && body.data?.state === 'success',\n  taskId: body.data?.taskId,\n  status: body.data?.state,\n  outputImages: resultUrls,\n  model: body.data?.model,\n  costTime: body.data?.costTime,\n  createTime: body.data?.createTime,\n  completeTime: body.data?.completeTime,\n  message: body.msg\n};\n\nreturn [{ json: result }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -368,
+        192
+      ],
+      "id": "c028905f-2fc4-4aec-beea-d8a75af14c4f",
+      "name": "Format Output"
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nconst referenceImages = input.referenceImages || [];\nconst productImages = input.productImages || [];\nconst initialPrompt = input.initialPrompt || '';\nconst numberOfPrompts = input.numberOfPrompts || 3;\n\n// Build reference image descriptions\nlet imageDescriptions = referenceImages\n  .map((img, i) => `**Image ${i + 1}:**\\n${img.analysis}`)\n  .join('\\n\\n');\n\nconst systemPrompt = `Think as creative designer, you've been given the brand images, base on visual create visual direction with similar tone color and style of this brand\n\nHere are descriptions of the reference images:\n\n${imageDescriptions}\n\nYou are a professional creative designer who specialises in creating art directed prompts for AI image generators such as Nano Banana Pro.\n\nYou will be given an idea for a prompt and images of products.\n\nYour task is to generate ${numberOfPrompts} diverse, high-end prompts for image generation with different variant, e.g background; model face; angle\n\nTake the user prompt into high account when creating your new prompts.\n\nFORMAT:\n– Separate each prompt by a ;\n– Output as a list: prompt1; prompt2; prompt3; etc.\n– No additional context, commentary, thoughts, analysis (just the raw prompts)`;\n\n// ============================================\n// KEI.AI FORMAT (Original - Primary)\n// ============================================\nconst userContent = [\n  { type: \"text\", text: initialPrompt }\n];\n\nproductImages.forEach((img) => {\n  userContent.push({\n    type: \"image_url\",\n    image_url: { url: img.url }\n  });\n});\n\nconst requestBody = {\n  messages: [\n    { \n      role: \"system\", \n      content: [\n        { type: \"text\", text: systemPrompt }\n      ]\n    },\n    { \n      role: \"user\", \n      content: userContent \n    }\n  ],\n  stream: false,\n  include_thoughts: false,\n  reasoning_effort: \"low\"\n};\n\n// ============================================\n// GEMINI DIRECT FORMAT (Backup)\n// ============================================\nfunction getMimeType(url) {\n  const extension = url.split('.').pop().toLowerCase().split('?')[0];\n  const mimeTypes = {\n    'png': 'image/png',\n    'jpg': 'image/jpeg',\n    'jpeg': 'image/jpeg',\n    'gif': 'image/gif',\n    'webp': 'image/webp'\n  };\n  return mimeTypes[extension] || 'image/jpeg';\n}\n\nconst geminiUserParts = [\n  { text: initialPrompt }\n];\n\n// Add image URLs and mime types for later base64 conversion\nconst imagesToConvert = productImages.map((img) => ({\n  url: img.url,\n  mimeType: getMimeType(img.url)\n}));\n\nconst geminiRequestBodyTemplate = {\n  system_instruction: {\n    parts: [\n      { text: systemPrompt }\n    ]\n  },\n  contents: [\n    {\n      role: \"user\",\n      parts: geminiUserParts // Will be populated with base64 images in the Gemini node\n    }\n  ],\n  generationConfig: {\n    thinkingConfig: {\n      thinkingLevel: \"low\"\n    }\n  }\n};\n\nreturn [{\n  json: {\n    // Primary: kei.ai\n    requestBody: requestBody,\n    \n    // Backup: Gemini Direct\n    geminiRequestBodyTemplate: geminiRequestBodyTemplate,\n    imagesToConvert: imagesToConvert,\n    systemPrompt: systemPrompt,\n    initialPrompt: initialPrompt,\n    \n    // Shared\n    productImages: productImages,\n    numberOfPrompts: numberOfPrompts\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        -128
+      ],
+      "id": "8a67e2c1-7d53-446b-a3f1-83b2e828d7f0",
+      "name": "Build LLM Messages"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/gemini-3-pro/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.requestBody) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1200,
+        -128
+      ],
+      "id": "33c8490f-0777-4f95-8b2a-a6e0779db7bf",
+      "name": "Call LLM API",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "czwY13Vstp9FKXS7",
+          "name": "kie.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\n\n// Debug: log input structure\nconsole.log('Input:', JSON.stringify(input).substring(0, 500));\n\nlet promptText = '';\nlet responseData = input;\n\n// Parse the data field if it's a string (kei.ai sometimes returns this way)\nif (input.data && typeof input.data === 'string') {\n  try {\n    responseData = JSON.parse(input.data);\n  } catch (e) {\n    console.log('JSON parse error:', e.message);\n    responseData = input;\n  }\n} else if (input.data && typeof input.data === 'object') {\n  responseData = input.data;\n}\n\n// ============================================\n// EXTRACT CONTENT FROM RESPONSE\n// ============================================\n\n// Option 1: Kei.ai / OpenAI format\n// Structure: { choices: [{ message: { content: \"...\" } }] }\nif (responseData.choices && responseData.choices[0]) {\n  promptText = responseData.choices[0].message?.content || '';\n  console.log('Detected: kei.ai/OpenAI format');\n}\n\n// Option 2: Gemini format\n// Structure: { candidates: [{ content: { parts: [{ text: \"...\" }] } }] }\nelse if (responseData.candidates && responseData.candidates[0]) {\n  const parts = responseData.candidates[0].content?.parts || [];\n  promptText = parts.map(part => part.text || '').join('\\n');\n  console.log('Detected: Gemini format');\n}\n\n// Option 3: Alternative kei.ai structure\nelse if (responseData.message?.content) {\n  promptText = responseData.message.content;\n  console.log('Detected: Alternative kei.ai format');\n}\n\n// Option 4: Direct text response\nelse if (typeof responseData === 'string') {\n  promptText = responseData;\n  console.log('Detected: Direct string response');\n}\n\nconsole.log('Prompt text length:', promptText.length);\nconsole.log('Prompt text preview:', promptText.substring(0, 200));\n\n// ============================================\n// SPLIT PROMPTS\n// ============================================\n\n// Split prompts by double newline\nlet prompts = promptText\n  .split(/\\n\\n+/)\n  .map(p => p.trim())\n  .filter(p => p.length > 0);\n\n// If no prompts found with \\n\\n, try splitting by semicolon\nif (prompts.length <= 1 && promptText.includes(';')) {\n  prompts = promptText\n    .split(/;\\s*/)\n    .map(p => p.trim())\n    .filter(p => p.length > 0);\n}\n\nconsole.log('Number of prompts found:', prompts.length);\n\n// Safety check: if still no prompts, return the whole text as one prompt\nif (prompts.length === 0 && promptText.length > 0) {\n  prompts = [promptText];\n}\n\n// ============================================\n// GET PRODUCT IMAGE URLs\n// ============================================\n\nlet productUrls = [];\ntry {\n  const buildLLMData = $('Build LLM Messages').first().json;\n  productUrls = (buildLLMData.productImages || []).map(img => img.url);\n} catch (e) {\n  console.log('Error getting product URLs:', e.message);\n  // Try alternative node name\n  try {\n    const buildFinalData = $('Build Final Output').first().json;\n    productUrls = (buildFinalData.productImages || []).map(img => img.url);\n  } catch (e2) {\n    console.log('Error getting product URLs from Build Final Output:', e2.message);\n  }\n}\n\n// ============================================\n// CREATE OUTPUT ITEMS\n// ============================================\n\nconst items = prompts.map((prompt, index) => ({\n  json: {\n    prompt: prompt,\n    promptIndex: index,\n    productImageUrls: productUrls\n  }\n}));\n\n// Safety: always return at least one item to prevent workflow stop\nif (items.length === 0) {\n  return [{\n    json: {\n      error: 'No prompts generated',\n      rawInput: JSON.stringify(input).substring(0, 1000),\n      promptText: promptText.substring(0, 500)\n    }\n  }];\n}\n\nreturn items;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1472,
+        -128
+      ],
+      "id": "a59e8e76-4622-4925-b67e-84aa78b11ab7",
+      "name": "Split Prompts"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d4aeaa4a-3ecf-421e-9c37-d18c9ea3be37",
+              "leftValue": "={{ $json.code }}",
+              "rightValue": 500,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        928,
+        80
+      ],
+      "id": "5b9be68b-70a5-4f8f-b643-85fb744a5bef",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.kie.ai/gemini-2.5-pro/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpBearerAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Build LLM Messages').item.json.requestBody) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1264,
+        80
+      ],
+      "id": "ac818ad2-a020-421f-87fb-a010b91df3df",
+      "name": "Call LLM API BACKUP",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "czwY13Vstp9FKXS7",
+          "name": "kie.ai"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "32d158d8-ee74-485b-905a-087125702c92",
+              "leftValue": "={{ $json.error }}",
+              "rightValue": "No prompts generated",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1632,
+        -128
+      ],
+      "id": "7009e275-451a-46e0-9ff7-6f37fbbd9cd0",
+      "name": "If1"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "d4aeaa4a-3ecf-421e-9c37-d18c9ea3be37",
+              "leftValue": "={{ $json.code }}",
+              "rightValue": 500,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        256
+      ],
+      "id": "f016e620-f67d-4feb-82db-3dfddbd8ff78",
+      "name": "If2"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-pro-preview:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($('Build Gemini Request').item.json.geminiRequestBody) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1376,
+        272
+      ],
+      "id": "ef348759-1290-424f-b8a7-b0fe35d1f567",
+      "name": "Call Gemini API Direct",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "pVSX7DWUHqMKkcNw",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input =$('Build LLM Messages').first().json;\nconst geminiTemplate = input.geminiRequestBodyTemplate;\nconst imagesToConvert = input.imagesToConvert || [];\nconst initialPrompt = input.initialPrompt;\n\n// Build user parts array starting with text\nconst userParts = [\n  { text: initialPrompt }\n];\n\n// Convert all product images to base64 and add to parts\nfor (const img of imagesToConvert) {\n  const response = await this.helpers.httpRequest({\n    method: 'GET',\n    url: img.url,\n    encoding: 'arraybuffer',\n    returnFullResponse: true\n  });\n  \n  const base64Data = Buffer.from(response.body).toString('base64');\n  \n  userParts.push({\n    inline_data: {\n      mime_type: img.mimeType,\n      data: base64Data\n    }\n  });\n}\n\n// Build final Gemini request body\nconst geminiRequestBody = {\n  system_instruction: geminiTemplate.system_instruction,\n  contents: [\n    {\n      role: \"user\",\n      parts: userParts\n    }\n  ],\n  generationConfig: geminiTemplate.generationConfig\n};\n\nreturn [{\n  json: {\n    geminiRequestBody: geminiRequestBody,\n    productImages: input.productImages,\n    numberOfPrompts: input.numberOfPrompts\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1200,
+        272
+      ],
+      "id": "c7869f14-3603-4f39-99b3-ae4cd34d82b8",
+      "name": "Build Gemini Request"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        688,
+        144
+      ],
+      "id": "8a96144d-0729-4a7e-b806-0f1f6e976dd9",
+      "name": "No Operation, do nothing"
+    },
+    {
+      "parameters": {
+        "respondWith": "allIncomingItems",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        2272,
+        -128
+      ],
+      "id": "ab2890ca-491b-40b4-9d96-dbfd7a640fe2",
+      "name": "Respond to Webhook"
+    }
+  ],
+  "connections": {
+    "Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process Webhook Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Webhook Input": {
+      "main": [
+        [
+          {
+            "node": "Is Reference Image?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Reference Image?": {
+      "main": [
+        [
+          {
+            "node": "Analyze Reference Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Product URLs Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Reference Image": {
+      "main": [
+        [
+          {
+            "node": "Format Reference Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Product URLs Only": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Format Reference Results": {
+      "main": [
+        [
+          {
+            "node": "Merge All Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge All Results": {
+      "main": [
+        [
+          {
+            "node": "Build Final Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Final Output": {
+      "main": [
+        [
+          {
+            "node": "Build LLM Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Image API": {
+      "main": [
+        [
+          {
+            "node": "Format Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Final Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Generation Callback": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build LLM Messages": {
+      "main": [
+        [
+          {
+            "node": "Call LLM API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM API": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Split Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Prompts": {
+      "main": [
+        [
+          {
+            "node": "If1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Call LLM API BACKUP",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call LLM API BACKUP": {
+      "main": [
+        [
+          {
+            "node": "Split Prompts",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Generate Image API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If2": {
+      "main": [
+        [
+          {
+            "node": "Build Gemini Request",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Operation, do nothing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Gemini API Direct": {
+      "main": [
+        [
+          {
+            "node": "Split Prompts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Gemini Request": {
+      "main": [
+        [
+          {
+            "node": "Call Gemini API Direct",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {
+    "Webhook Trigger": [
+      {
+        "headers": {
+          "connection": "Keep-Alive",
+          "host": "n8n.tansil.pro",
+          "x-forwarded-scheme": "https",
+          "x-forwarded-proto": "https",
+          "x-forwarded-for": "143.44.197.206, 162.158.108.78",
+          "x-real-ip": "162.158.108.78",
+          "content-length": "565",
+          "priority": "u=1, i",
+          "sec-ch-ua-platform": "\"Windows\"",
+          "authorization": "Basic bmVyLWFkbWluOmdlbmVyYXRlM1ghISE=",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36",
+          "sec-ch-ua": "\"Not(A:Brand\";v=\"8\", \"Chromium\";v=\"144\", \"Google Chrome\";v=\"144\"",
+          "content-type": "application/json",
+          "sec-ch-ua-mobile": "?0",
+          "accept": "*/*",
+          "origin": "https://imagebatchtwo.tansil.pro",
+          "sec-fetch-site": "same-site",
+          "sec-fetch-mode": "cors",
+          "sec-fetch-dest": "empty",
+          "referer": "https://imagebatchtwo.tansil.pro/",
+          "accept-encoding": "gzip, br",
+          "accept-language": "en-US,en;q=0.9",
+          "cf-ray": "9c92824e1dc7fd26-SIN",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "143.44.197.206",
+          "cf-ipcountry": "PH",
+          "cf-visitor": "{\"scheme\":\"https\"}"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "referenceImages": [],
+          "productImages": [
+            "https://bucket.tansil.pro/20260205124600_0.png",
+            "https://bucket.tansil.pro/20260205124603_0.png"
+          ],
+          "initialPrompt": "Think as: a lifestyle photographer for longevity-focused brands\nThe scene: sunlit kitchen, IM8 sachet beside two clean glasses and folded napkin\nThe style: bright but restrained, premium calm\nThe product: IM8 sachet\nTarget audience: couples focused on long-term health\nAdditional notes: fresh start energy, no overt romance",
+          "numberOfPrompts": 2,
+          "callbackUrl": "https://n8n.tansil.pro/webhook/kie-callback"
+        },
+        "webhookUrl": "https://n8n.tansil.pro/webhook/image-batch",
+        "executionMode": "production"
+      }
+    ],
+    "Image Generation Callback": [
+      {
+        "headers": {
+          "connection": "Keep-Alive",
+          "host": "n8n.tansil.pro",
+          "x-forwarded-scheme": "https",
+          "x-forwarded-proto": "https",
+          "x-forwarded-for": "47.254.71.23, 172.69.134.198",
+          "x-real-ip": "172.69.134.198",
+          "content-length": "1095",
+          "accept-encoding": "gzip, br",
+          "accept-language": "zh-CN,zh;q=0.8",
+          "pragma": "no-cache",
+          "cache-control": "no-cache",
+          "cf-ray": "9c5a2a6c39b35850-SJC",
+          "content-type": "application/json;charset=UTF-8",
+          "accept": "text/html,application/json,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.142 Safari/537.36 Hutool",
+          "cdn-loop": "cloudflare; loops=1",
+          "cf-connecting-ip": "47.254.71.23",
+          "cf-ipcountry": "US",
+          "cf-visitor": "{\"scheme\":\"https\"}"
+        },
+        "params": {},
+        "query": {},
+        "body": {
+          "code": 200,
+          "data": {
+            "completeTime": 1769704767000,
+            "costTime": 51,
+            "createTime": 1769704716000,
+            "model": "seedream/4.5-edit",
+            "param": "{\"input\":\"{\\\"aspect_ratio\\\":\\\"9:16\\\",\\\"image_urls\\\":[\\\"https://bucket.tansil.pro/20260129150136_image_product_1.png\\\"],\\\"prompt\\\":\\\"High-fashion photography of a confident female model in a sleek, minimalist studio, wearing a fitted black turtleneck and dark sunglasses, holding a bright yellow lemon-shaped container with an \\\\\\\"N\\\\\\\" logo delicately in one hand near her face, sharp focus on the product texture, soft gray seamless background, studio lighting creating subtle shadows, modern chic aesthetic, 8k resolution, cinematic composition\\\",\\\"quality\\\":\\\"high\\\"}\",\"callBackUrl\":\"https://n8n.tansil.pro/webhook/kie-callback\",\"model\":\"seedream/4.5-edit\"}",
+            "resultJson": "{\"resultUrls\":[\"https://tempfile.aiquickdraw.com/f/a0f4261f-a7a6-4c7b-85a9-12e72feae2a6_0.jpg\"]}",
+            "state": "success",
+            "taskId": "595b8cb33310c6f07541fa02a4d7c7df",
+            "updateTime": 1769704767000
+          },
+          "msg": "Playground task completed successfully."
+        },
+        "webhookUrl": "https://n8n.tansil.pro/webhook/kie-callback",
+        "executionMode": "production"
+      }
+    ],
+    "Call Gemini API Direct": [
+      {
+        "candidates": [
+          {
+            "content": {
+              "parts": [
+                {
+                  "text": "a medium shot fashion photography of an elegant female model wearing a structured beige trench coat, holding a luxurious black leather handbag by its top handle, the bag is the sharp focal point with its textured leather and silver buckle catching the light, soft daylight studio lighting, clean off-white minimalist background, 85mm lens, high fidelity, ultra-detailed texture, quiet luxury aesthetic;\n\na close-up portrait crop of a sophisticated woman's hand resting on the strap of a premium black leather bag slung over her shoulder, wearing a crisp white oversized shirt, blurring into a soft neutral grey background, focus is strictly on the bag's hardware and leather grain, cinematic lighting, soft shadows, vogue editorial style, raw color grading, 50mm lens",
+                  "thoughtSignature": "EpYECpMEAb4+9vtbjZPBW5/DKicHoFkONEWrkA7atjNgjAZC3nck7K4CrfQrxhqHVH4002qXZs9AVK3uV4bGsSbABUTbJ1FwYwD+/ahEpX15e10H2eHd6HZ8NFWv7Rr13kaPxrWKq4v2m2UoK6y0OIl7gJku+tIPETIv4pXBLzUYQpQDGBrwiqgRPv0CprrSwmQW8+mQr2e4WWMdnf3fYavyxeJyENlRTv1TGMA89TnlM0zoxIEZkqRNHn6zapqPDoQERzHCe0bPLkCtaUQ4WwLnBhMafzmUqVqKsymHm0xrYai69qM1rCjQ8EMcQlBiPYIfxRDgiGLSqcHUZouribUI/n439qWgK+Dxi6Qg2X6x38QJFFq6a4zkENcF4g3vhg92H613fk58B0e8i1V6w0BrM8Sk/7i2X2J8OR7T+j5DmY8hChOXLQoEzApTwiiR2hjlAzlxjt6mtuAvKKfjJynUOecfhKR2TLgvx7cH5q9p+UMynmkXnkjRNZlt09/rMO5dllfhHh0MlJRSBRBap8W8al4iWGmYOcTwREgXfIaHx7RSIYx0Zf7/h852ofDllQ2rAH9Q7vhlZp9Dfnvj/bceFS1RyVIDFniPtFjEPjXsOc9SnmkArcPwnW8ZehS7A94SJdN006EYGtG8IrMIPNipiG9LJiKtAK5cGz6EuAb1zNmw1ODOGuI3YMnFBl4H+cyuxtAcKhZc"
+                }
+              ],
+              "role": "model"
+            },
+            "finishReason": "STOP",
+            "index": 0
+          }
+        ],
+        "usageMetadata": {
+          "promptTokenCount": 1278,
+          "candidatesTokenCount": 153,
+          "totalTokenCount": 1542,
+          "promptTokensDetails": [
+            {
+              "modality": "IMAGE",
+              "tokenCount": 1085
+            },
+            {
+              "modality": "TEXT",
+              "tokenCount": 193
+            }
+          ],
+          "thoughtsTokenCount": 111
+        },
+        "modelVersion": "gemini-3-pro-preview",
+        "responseId": "nkeEabSUONnojuMPldGV2Ao"
+      }
+    ]
+  },
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "dc0bca617a3c9e12fd7b5834d80f66965105c88ed5c2320f0c1e5e40731c0a61"
+  }
+}
