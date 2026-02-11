@@ -3,10 +3,12 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/ner-studio/api/internal/model"
 	"github.com/ner-studio/api/internal/repository"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // AuthService handles authentication and user management
@@ -21,20 +23,55 @@ func NewAuthService(repo *repository.Repository) *AuthService {
 	}
 }
 
-// GetOrCreateUser retrieves or creates a user after OAuth
-func (s *AuthService) GetOrCreateUser(ctx context.Context, userID, email string) (*model.Profile, error) {
-	// Try to get existing profile
-	profile, err := s.repo.GetProfileByUserID(ctx, userID)
-	if err == nil {
-		return profile, nil
+// User represents a user in the system
+type User struct {
+	ID        uuid.UUID
+	Email     string
+	Password  string // hashed
+	CreatedAt time.Time
+	UpdatedAt time.Time
+}
+
+// CreateUser creates a new user with hashed password
+func (s *AuthService) CreateUser(ctx context.Context, email, password string) (*User, error) {
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Profile doesn't exist - user needs onboarding
-	return nil, nil
+	user := &User{
+		ID:       uuid.New(),
+		Email:    email,
+		Password: string(hashedPassword),
+	}
+
+	// TODO: Save to database
+	// For now, we'll need to add a users table
+
+	return user, nil
+}
+
+// AuthenticateUser verifies email/password and returns user
+func (s *AuthService) AuthenticateUser(ctx context.Context, email, password string) (*User, error) {
+	// TODO: Get user from database by email
+	// For now, return error
+	return nil, fmt.Errorf("authentication not implemented - need users table")
+}
+
+// GetUserProfile retrieves user profile
+func (s *AuthService) GetUserProfile(ctx context.Context, userID string) (*model.Profile, error) {
+	return s.repo.GetProfileByUserID(ctx, userID)
 }
 
 // CreateOrganizationAndProfile creates a new org and admin profile
-func (s *AuthService) CreateOrganizationAndProfile(ctx context.Context, userID, email, fullName, orgName string) (*model.Organization, *model.Profile, error) {
+func (s *AuthService) CreateOrganizationAndProfile(ctx context.Context, email, fullName, orgName, password string) (*model.Organization, *model.Profile, error) {
+	// Create user first
+	user, err := s.CreateUser(ctx, email, password)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Create organization
 	org := &model.Organization{
 		ID:      uuid.New(),
@@ -50,7 +87,7 @@ func (s *AuthService) CreateOrganizationAndProfile(ctx context.Context, userID, 
 	// Create profile as admin
 	profile := &model.Profile{
 		ID:             uuid.New(),
-		UserID:         uuid.MustParse(userID),
+		UserID:         user.ID,
 		OrganizationID: org.ID,
 		FullName:       fullName,
 		Role:           "admin",

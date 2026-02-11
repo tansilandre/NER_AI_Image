@@ -13,16 +13,16 @@ type Config struct {
 	Port string
 	Env  string
 
-	// Supabase
-	SupabaseURL             string
-	SupabaseAnonKey         string
-	SupabaseServiceRoleKey  string
-	DatabaseURL             string
+	// Database
+	DatabaseURL string
 
-	// Provider API Keys (can also be in DB)
-	KieAIAPIKey     string
-	OpenAIAPIKey    string
-	GeminiAPIKey    string
+	// JWT
+	JWTSecret string
+
+	// Provider API Keys
+	KieAIAPIKey  string
+	OpenAIAPIKey string
+	GeminiAPIKey string
 
 	// R2 Storage
 	R2AccountID       string
@@ -32,7 +32,7 @@ type Config struct {
 	R2PublicURL       string
 
 	// App
-	CallbackBaseURL            string
+	CallbackBaseURL             string
 	ProviderKeyEncryptionSecret string
 }
 
@@ -45,10 +45,8 @@ func Load() *Config {
 		Port: getEnv("PORT", "8080"),
 		Env:  getEnv("ENV", "development"),
 
-		SupabaseURL:                getEnv("SUPABASE_URL", ""),
-		SupabaseAnonKey:            getEnv("SUPABASE_ANON_KEY", ""),
-		SupabaseServiceRoleKey:     getEnv("SUPABASE_SERVICE_ROLE_KEY", ""),
-		DatabaseURL:                getEnv("DATABASE_URL", ""),
+		DatabaseURL: getEnv("DATABASE_URL", ""),
+		JWTSecret:   getEnv("JWT_SECRET", "default-secret-change-in-production"),
 
 		KieAIAPIKey:  getEnv("KIE_AI_API_KEY", ""),
 		OpenAIAPIKey: getEnv("OPENAI_API_KEY", ""),
@@ -65,8 +63,11 @@ func Load() *Config {
 	}
 
 	// Validate required config
-	if cfg.SupabaseURL == "" {
-		log.Println("Warning: SUPABASE_URL not set")
+	if cfg.DatabaseURL == "" {
+		log.Println("Warning: DATABASE_URL not set")
+	}
+	if cfg.JWTSecret == "default-secret-change-in-production" {
+		log.Println("Warning: Using default JWT secret. Change in production!")
 	}
 
 	return cfg

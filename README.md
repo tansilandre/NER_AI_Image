@@ -8,14 +8,15 @@ AI Image Generation Platform for Creative Teams
 # Install dependencies
 make deps
 
-# Start Supabase local
-make db-start
+# Setup environment
+cp apps/api/.env.example apps/api/.env
+# Edit apps/api/.env with your database credentials
 
 # Run migrations
-make db-migrate
+cd apps/api && go run cmd/migrate/main.go
 
-# Start development servers
-make dev
+# Start development server
+make dev-api
 ```
 
 ## Project Structure
@@ -24,9 +25,9 @@ make dev
 ner-studio/
 ├── apps/
 │   ├── api/          # Go + Fiber backend
-│   └── web/          # React + Vite frontend
+│   └── web/          # React + Vite frontend (coming soon)
 ├── supabase/
-│   └── migrations/   # Database migrations
+│   └── migrations/   # Database migrations (for any PostgreSQL)
 ├── docs/             # Documentation
 └── Makefile          # Common commands
 ```
@@ -35,72 +36,63 @@ ner-studio/
 
 The backend is built with Go and Fiber, featuring:
 
+- **Simple JWT Auth**: No external auth provider needed
 - **Provider System**: Pluggable AI providers (OpenAI, Kie.ai, Gemini)
 - **Multi-tier LLM Fallback**: Automatic failover between providers
 - **Credit-based Billing**: Per-model pricing with atomic deductions
 - **Async Workflows**: Image generation pipeline with callbacks
-- **RLS Security**: Row-level security for multi-tenant data
 
-### Key Files
+### Requirements
 
-```
-apps/api/
-├── cmd/server/main.go           # Entry point
-├── internal/
-│   ├── config/                  # Environment config
-│   ├── middleware/              # Auth, CORS, logging
-│   ├── handler/                 # HTTP handlers
-│   ├── service/                 # Business logic
-│   ├── repository/              # Database layer
-│   ├── model/                   # Data structs
-│   ├── provider/                # Provider implementations
-│   ├── workflow/                # Image generation workflow
-│   └── external/                # R2 storage client
-└── go.mod
-```
+- Go 1.23+
+- PostgreSQL 14+ (local, Neon, Railway, AWS RDS, etc.)
+- (Optional) Cloudflare R2 for image storage
 
 ### Environment Variables
 
 See `apps/api/.env.example` for required environment variables.
 
-## Frontend (Web)
+Key variables:
+```env
+DATABASE_URL=postgresql://user:pass@host:5432/dbname
+JWT_SECRET=your-secret-key
+KIE_AI_API_KEY=...
+OPENAI_API_KEY=...
+```
 
-To be implemented with React 19 + Vite + Tailwind 4.
+## Database
 
-## Database Schema
+Any PostgreSQL database works:
 
-### Core Tables
+- **Local**: `postgresql://user:pass@localhost:5432/ner_studio`
+- **Neon**: `postgresql://user:pass@ep-xxx.us-east-1.aws.neon.tech/dbname`
+- **Railway**: `postgresql://user:pass@containers-xx.railway.app:5432/railway`
+- **AWS RDS**: `postgresql://user:pass@xxx.us-east-1.rds.amazonaws.com:5432/dbname`
 
-- `organizations` — Billing entity with credit balance
-- `profiles` — User profiles linked to orgs
-- `providers` — AI provider registry
-- `generations` — Generation requests
-- `generation_images` — Individual generated images
-- `credit_ledger` — Immutable credit transaction log
-- `invitations` — Pending org invitations
+### Run Migrations
+
+```bash
+cd apps/api
+go run cmd/migrate/main.go
+```
 
 ## Available Commands
 
 ```bash
-make dev          # Start both frontend and backend
-make dev-api      # Start backend with hot reload
-make dev-web      # Start frontend dev server
+make dev-api      # Start backend (port 8080)
+make dev-web      # Start frontend (port 5173)
 make build        # Build for production
 make test         # Run all tests
-make lint         # Run all linters
 make db-migrate   # Run database migrations
-make db-reset     # Reset database
 ```
 
 ## Documentation
 
 See `docs/` folder for detailed documentation:
 
-- `PRD.md` — Product Requirements
-- `ARCHITECTURE.md` — System Architecture
-- `API_SPECIFICATION.md` — REST API Docs
-- `DATABASE_SCHEMA.md` — DB Schema Details
-- `FRONTEND_SPEC.md` — Frontend Specification
+- `DATABASE_SETUP.md` - Database setup guide
+- `TESTING.md` - Testing guide
+- `API_SPECIFICATION.md` - REST API docs
 
 ## License
 

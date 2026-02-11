@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
@@ -15,15 +16,15 @@ const (
 	UserIDKey         contextKey = "user_id"
 	OrganizationIDKey contextKey = "organization_id"
 	RoleKey           contextKey = "role"
+	JWTSecretKey      contextKey = "jwt_secret"
 )
 
 // AuthConfig holds JWT validation settings
 type AuthConfig struct {
-	SupabaseURL    string
-	SupabaseAnonKey string
+	JWTSecret string
 }
 
-// NewAuthMiddleware creates JWT auth middleware using Supabase tokens
+// NewAuthMiddleware creates JWT auth middleware
 func NewAuthMiddleware(config AuthConfig) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Skip auth for public routes
@@ -52,9 +53,7 @@ func NewAuthMiddleware(config AuthConfig) fiber.Handler {
 			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			// For Supabase JWT, we use the anon key as the secret
-			// In production, you should fetch the JWT secret from Supabase
-			return []byte(config.SupabaseAnonKey), nil
+			return []byte(config.JWTSecret), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -74,6 +73,12 @@ func NewAuthMiddleware(config AuthConfig) fiber.Handler {
 		// Set user info in context
 		if sub, ok := claims["sub"].(string); ok {
 			c.Locals(string(UserIDKey), sub)
+		}
+		if orgID, ok := claims["org_id"].(string); ok {
+			c.Locals(string(OrganizationIDKey), orgID)
+		}
+		if role, ok := claims["role"].(string); ok {
+			c.Locals(string(RoleKey), role)
 		}
 
 		return c.Next()
@@ -104,7 +109,7 @@ func GetUserID(c *fiber.Ctx) string {
 	return userID
 }
 
-// GetOrganizationID extracts org ID from context (set by org middleware)
+// GetOrganizationID extracts org ID from context
 func GetOrganizationID(c *fiber.Ctx) string {
 	orgID, ok := c.Locals(string(OrganizationIDKey)).(string)
 	if !ok {
@@ -133,4 +138,18 @@ func RequireAdmin() fiber.Handler {
 		}
 		return c.Next()
 	}
+}
+
+// GenerateJWT creates a new JWT token for a user
+func GenerateJWT(userID, orgID, role string, secret string, expiryHours int) (string, error) {
+	claims := jwt.MapClaims{
+		"sub":    userID,
+		"org_id": orgID,
+		"role":   role,
+		"exp":    time.Now().Add(time.Hour * time.Duration(expiryHours)).Unix(),
+		"iat":    time.Now().Unix(),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(secret))
 }
