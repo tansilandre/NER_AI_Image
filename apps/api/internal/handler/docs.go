@@ -8,14 +8,16 @@ import (
 func SetupDocs(app *fiber.App) {
 	// Serve Scalar UI at /docs
 	app.Get("/docs", func(c *fiber.Ctx) error {
-		c.Set("Content-Type", "text/html")
-		return c.SendString(scalarHTML)
+		c.Set("Content-Type", "text/html; charset=utf-8")
+		c.Set("Cache-Control", "public, max-age=3600")
+		return c.Status(fiber.StatusOK).SendString(scalarHTML)
 	})
 
 	// Serve OpenAPI spec at /openapi.json
 	app.Get("/openapi.json", func(c *fiber.Ctx) error {
-		c.Set("Content-Type", "application/json")
-		return c.SendString(openAPISpec)
+		c.Set("Content-Type", "application/json; charset=utf-8")
+		c.Set("Cache-Control", "public, max-age=3600")
+		return c.Status(fiber.StatusOK).SendString(openAPISpec)
 	})
 
 	// Redirect root to docs
